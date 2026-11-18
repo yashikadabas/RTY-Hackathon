@@ -1,9 +1,9 @@
 {
-  "team_name": "CHANGE_ME",
-  "project_title": "CHANGE_ME",
-  "one_liner": "CHANGE_ME: one sentence about what you're building",
-  "track": "CHANGE_ME: physical-world | ai-agents | area-of-expertise",
+  "team_name": "Onlocation",
+  "project_title": "Onlocation",
+  "one_liner": "Drop a pin anywhere on Earth and get a cinematic short film of yourself there, grounded in real Street View and live weather.",
+  "track": "physical-world",
   "members": [
-    { "name": "CHANGE_ME", "github": "CHANGE_ME" }
+    { "name": "Yashika Dabas", "github": "yashikadabas" }
   ]
 }
