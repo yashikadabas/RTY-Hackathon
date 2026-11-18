@@ -175,3 +175,12 @@ describe("parseShots tolerates numbered shot ids", () => {
     expect(parseShots(raw)!.map((s) => s.shotId)).toEqual(["establishing_drone", "walking_tracking", "detail_cutaway", "hero_finale"]);
   });
 });
+
+describe("parseShots positional fallback", () => {
+  it("maps 5 un-typed shots by order", () => {
+    const sh = (n: number) => ({ shotId: `shot_${n}`, imagePrompt: `prompt ${n}`, motionPrompt: "m", durationSec: 4 });
+    const s = parseShots(JSON.stringify({ shots: [1, 2, 3, 4, 5].map(sh) }))!;
+    expect(s.map((x) => x.shotId)).toEqual(["establishing_drone", "walking_tracking", "detail_cutaway", "hero_finale"]);
+    expect(s[3].imagePrompt).toBe("prompt 5");
+  });
+});

@@ -172,6 +172,35 @@ function conditionsText(c: Conditions, w: { tempC?: number; localTime?: string }
 
 /** Validate + repair a shot list so the grammar always holds. */
 export function parseShots(raw: string): Shot[] | null {
+  const strict = parseShotsStrict(raw);
+  if (strict) return strict;
+  // Last resort: trust the order the director gave (first = drone, last = hero).
+  let data: unknown;
+  try {
+    data = JSON.parse(raw.replace(/^```(?:json)?|```$/g, "").trim());
+  } catch {
+    return null;
+  }
+  const arr = ((data as { shots?: unknown[] })?.shots ?? []).filter(
+    (s): s is Record<string, unknown> => Boolean(s) && typeof (s as Record<string, unknown>).imagePrompt === "string",
+  );
+  if (arr.length < 3) return null;
+  const pick = [arr[0], arr[1], arr.length > 3 ? arr[2] : null, arr[arr.length - 1]].filter(
+    (s): s is Record<string, unknown> => Boolean(s),
+  );
+  const ids: ShotId[] =
+    pick.length === 4
+      ? ["establishing_drone", "walking_tracking", "detail_cutaway", "hero_finale"]
+      : ["establishing_drone", "walking_tracking", "hero_finale"];
+  return pick.map((s, i) => ({
+    shotId: ids[i],
+    imagePrompt: String(s.imagePrompt),
+    motionPrompt: String(s.motionPrompt ?? "slow cinematic push-in"),
+    durationSec: s.durationSec === 5 ? 5 : 4,
+  }));
+}
+
+function parseShotsStrict(raw: string): Shot[] | null {
   let data: unknown;
   try {
     data = JSON.parse(raw.replace(/^```(?:json)?|```$/g, "").trim());
