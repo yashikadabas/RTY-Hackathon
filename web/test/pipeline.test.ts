@@ -50,9 +50,12 @@ describe("parseShots repairs the director's JSON", () => {
     expect(s.length).toBeLessThanOrEqual(4);
     expect(s.filter((x) => x.shotId === "detail_cutaway").length).toBeLessThanOrEqual(1);
   });
-  it("rejects garbage and plans without a drone or hero", () => {
+  it("rejects garbage; repairs plans missing a drone by position", () => {
     expect(parseShots("not json")).toBeNull();
-    expect(parseShots(JSON.stringify({ shots: [shot("walking_tracking"), shot("portrait_moment"), shot("hero_finale")] }))).toBeNull();
+    expect(parseShots(JSON.stringify({ shots: [shot("walking_tracking")] }))).toBeNull();
+    const s = parseShots(JSON.stringify({ shots: [shot("walking_tracking"), shot("portrait_moment"), shot("hero_finale")] }))!;
+    expect(s[0].shotId).toBe("establishing_drone");
+    expect(s.at(-1)!.shotId).toBe("hero_finale");
   });
   it("fallback template follows the grammar", () => {
     const s = fallbackShots("Lisbon", "", { weatherFragment: "rain", timeFragment: "night", label: "", spoken: "rain", source: "override" });
