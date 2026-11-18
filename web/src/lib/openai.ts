@@ -21,45 +21,76 @@ export function hasOpenAI() {
 }
 
 let client: OpenAI | null = null;
-let resolvedModel: string | null = null;
+let candidates: string[] | null = null;
 
-/** Pick the newest stable "flash" Gemini model this key can use. */
+const version = (id: string) => parseFloat(id.split("-")[1] ?? "0");
+
+/**
+ * Order Gemini models for reliability + speed: newest "flash-lite" first
+ * (fast, rarely overloaded), then newest "flash". Pure, unit-tested.
+ */
+export function rankGeminiModels(ids: string[]): string[] {
+  const clean = ids.map((id) => id.replace(/^models\//, ""));
+  const lite = clean.filter((id) => /^gemini-\d+(\.\d+)?-flash-lite$/.test(id)).sort((a, b) => version(b) - version(a));
+  const flash = clean.filter((id) => /^gemini-\d+(\.\d+)?-flash$/.test(id)).sort((a, b) => version(b) - version(a));
+  return [...lite, ...flash];
+}
+/** Back-compat helper: best single model. */
 export function pickGeminiModel(ids: string[]): string | null {
-  const ok = ids
-    .map((id) => id.replace(/^models\//, ""))
-    .filter((id) => /^gemini-\d+(\.\d+)?-flash$/.test(id));
-  ok.sort((a, b) => parseFloat(b.split("-")[1]) - parseFloat(a.split("-")[1]));
-  return ok[0] ?? null;
+  return rankGeminiModels(ids).find((m) => !m.endsWith("-lite")) ?? null;
 }
 
-async function llm(): Promise<{ c: OpenAI; model: string }> {
+async function setup(): Promise<{ c: OpenAI; models: string[] }> {
   const provider = llmProvider();
   if (!provider) throw new Error("No LLM key (OPENAI_API_KEY or GEMINI_API_KEY)");
-  if (!client) {
-    client =
-      provider === "openai"
-        ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        : new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: GEMINI_BASE });
-  }
-  if (!resolvedModel) {
-    if (provider === "openai") resolvedModel = process.env.OPENAI_MODEL || "gpt-4o";
-    else if (process.env.GEMINI_MODEL) resolvedModel = process.env.GEMINI_MODEL;
+  client ??=
+    provider === "openai"
+      ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 60_000, maxRetries: 1 })
+      : new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: GEMINI_BASE, timeout: 30_000, maxRetries: 0 });
+  if (!candidates) {
+    if (provider === "openai") candidates = [process.env.OPENAI_MODEL || "gpt-4o"];
     else {
+      let ranked: string[] = [];
       try {
         const ids: string[] = [];
         for await (const m of client.models.list()) ids.push(m.id);
-        resolvedModel = pickGeminiModel(ids) ?? "gemini-2.5-flash";
+        ranked = rankGeminiModels(ids);
       } catch {
-        resolvedModel = "gemini-2.5-flash";
+        /* use defaults */
       }
+      const pinned = process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : [];
+      candidates = [...new Set([...pinned, ...ranked, "gemini-3.5-flash-lite", "gemini-3.5-flash"])];
     }
   }
-  return { c: client, model: resolvedModel };
+  return { c: client, models: candidates };
 }
 
-/** o-series / gpt-5 reject custom temperatures. */
-function temp(t: number, model: string) {
-  return /^(o\d|gpt-5)/.test(model) ? {} : { temperature: t };
+type ChatParams = Omit<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming, "model">;
+
+/**
+ * One chat completion with model failover: on overload (503), rate limit
+ * (429), retired model (404) or timeout, try the next candidate. The model
+ * that works moves to the front for the next call.
+ */
+async function chat(params: ChatParams) {
+  const { c, models } = await setup();
+  let lastErr: unknown;
+  for (const model of [...models]) {
+    // o-series / gpt-5 reject custom temperatures.
+    const p = /^(o\d|gpt-5)/.test(model) ? { ...params, temperature: undefined } : params;
+    try {
+      const res = await c.chat.completions.create({ ...p, model });
+      if (candidates && candidates[0] !== model) candidates = [model, ...candidates.filter((m) => m !== model)];
+      return res;
+    } catch (e) {
+      lastErr = e;
+      const status = (e as { status?: number }).status;
+      const retryable = status === undefined || [404, 408, 429, 500, 502, 503, 504].includes(status);
+      if (!retryable) throw e;
+      console.warn(`[llm] ${model} failed (${status ?? "timeout"}), trying next model`);
+    }
+  }
+  throw lastErr;
 }
 
 export const FILM_LOOK =
@@ -115,10 +146,8 @@ Rules: refer to the subject only as "the person in the reference image"; face mu
 
 /** 1. Describe the real environment from Street View frames. */
 export async function describeLocation(place: string, frames: string[]): Promise<string> {
-  const { c, model } = await llm();
-  const res = await c.chat.completions.create({
-    model,
-    ...temp(0.3, model),
+  const res = await chat({
+    temperature: 0.3,
     messages: [
       { role: "system", content: GROUNDING_SYSTEM },
       {
@@ -151,11 +180,26 @@ export function parseShots(raw: string): Shot[] | null {
   }
   const arr = (data as { shots?: unknown[] })?.shots;
   if (!Array.isArray(arr)) return null;
+  // Smaller models sometimes number shots ("1") or put the type elsewhere:
+  // recover it from other fields, the prompt text, or the position.
+  const POSITIONAL: ShotId[] = ["establishing_drone", "walking_tracking", "detail_cutaway", "hero_finale"];
+  const inferId = (s: Record<string, unknown>, i: number): ShotId | null => {
+    for (const k of ["shotId", "shotType", "type", "shot"]) {
+      const v = String(s[k] ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+      if (SHOT_IDS.includes(v as ShotId)) return v as ShotId;
+    }
+    const text = String(s.imagePrompt ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+    const hit = SHOT_IDS.find((id) => text.includes(id));
+    if (hit) return hit;
+    return arr.length === 4 ? POSITIONAL[i] : null;
+  };
   const shots: Shot[] = arr
-    .map((s) => s as Partial<Shot>)
-    .filter((s) => s && SHOT_IDS.includes(s.shotId as ShotId) && typeof s.imagePrompt === "string")
-    .map((s) => ({
-      shotId: s.shotId as ShotId,
+    .map((s, i) => ({ s: s as Partial<Shot> & Record<string, unknown>, i }))
+    .filter(({ s }) => s && typeof s.imagePrompt === "string")
+    .map(({ s, i }) => ({ s, id: inferId(s, i) }))
+    .filter((x): x is { s: Partial<Shot> & Record<string, unknown>; id: ShotId } => x.id !== null)
+    .map(({ s, id }) => ({
+      shotId: id,
       imagePrompt: String(s.imagePrompt),
       motionPrompt: String(s.motionPrompt ?? "slow cinematic push-in"),
       durationSec: s.durationSec === 5 ? 5 : 4,
@@ -223,10 +267,8 @@ export async function planShots(input: {
     .join("\n");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const { c, model } = await llm();
-      const res = await c.chat.completions.create({
-        model,
-        ...temp(0.7, model),
+      const res = await chat({
+        temperature: 0.7,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: PLANNER_SYSTEM },
@@ -238,8 +280,9 @@ export async function planShots(input: {
       });
       const shots = parseShots(res.choices[0]?.message?.content ?? "");
       if (shots) return { shots, fallback: false };
-    } catch {
-      /* retry */
+      console.warn("[llm] planner returned unusable JSON", res.choices[0]?.message?.content?.slice(0, 200));
+    } catch (e) {
+      console.error("[llm] planShots failed:", (e as Error).message);
     }
   }
   return { shots: fallbackShots(input.place, input.grounding, input.conditions), fallback: true };
@@ -254,10 +297,8 @@ export async function writeDialogue(input: {
   sceneIdea?: string;
 }): Promise<Script> {
   try {
-    const { c, model } = await llm();
-    const res = await c.chat.completions.create({
-      model,
-      ...temp(0.9, model),
+    const res = await chat({
+      temperature: 0.9,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: DIALOGUE_SYSTEM },
@@ -281,7 +322,8 @@ export async function writeDialogue(input: {
       .map((l) => ({ text: l.text.trim(), overShot: String(l.overShot ?? "") }));
     const musicMood = MOODS.includes(d.musicMood as WeatherMood) ? (d.musicMood as WeatherMood) : "mellow";
     return { lines, musicMood };
-  } catch {
+  } catch (e) {
+    console.error("[llm] writeDialogue failed:", (e as Error).message);
     return { lines: [], musicMood: "mellow" };
   }
 }
@@ -305,10 +347,8 @@ export async function compilePhotoPrompt(input: {
     .filter(Boolean)
     .join("\n");
   try {
-    const { c, model } = await llm();
-    const res = await c.chat.completions.create({
-      model,
-      ...temp(0.5, model),
+    const res = await chat({
+      temperature: 0.5,
       messages: [
         { role: "system", content: PHOTO_SYSTEM },
         { role: "user", content: user },
@@ -316,7 +356,8 @@ export async function compilePhotoPrompt(input: {
     });
     const p = res.choices[0]?.message?.content?.trim();
     if (p) return `${p} ${FILM_LOOK} ${SAFETY_LINE}`;
-  } catch {
+  } catch (e) {
+    console.error("[llm] compilePhotoPrompt failed:", (e as Error).message);
     /* fall through */
   }
   return `Candid travel photo of the person in the reference image in ${input.place}. ${input.grounding} ${input.conditions.weatherFragment}, ${input.conditions.timeFragment}. ${input.sceneIdea ?? ""} ${FILM_LOOK} ${SAFETY_LINE}`;

@@ -145,3 +145,33 @@ describe("Gemini model auto-pick", () => {
     expect(pickGeminiModel(["models/embedding-001"])).toBeNull();
   });
 });
+
+import { rankGeminiModels } from "@/lib/openai";
+
+describe("Gemini model failover order", () => {
+  it("prefers newest lite models, then newest flash", () => {
+    expect(
+      rankGeminiModels([
+        "models/gemini-2.5-flash",
+        "models/gemini-3.1-flash-lite",
+        "models/gemini-3.8-flash",
+        "models/gemini-3.5-flash-lite",
+        "models/gemini-2.5-pro",
+      ]),
+    ).toEqual(["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"]);
+  });
+});
+
+describe("parseShots tolerates numbered shot ids", () => {
+  it("infers types from prompt text or position", () => {
+    const raw = JSON.stringify({
+      shots: [
+        { shotId: "1", imagePrompt: "An establishing_drone shot over Lisbon", motionPrompt: "m", durationSec: 5 },
+        { shotId: "2", imagePrompt: "Tracking the person walking", motionPrompt: "m", durationSec: 4 },
+        { shotId: "3", imagePrompt: "Azulejo tiles close-up", motionPrompt: "m", durationSec: 4 },
+        { shotId: "4", imagePrompt: "The person turns to camera", motionPrompt: "m", durationSec: 5 },
+      ],
+    });
+    expect(parseShots(raw)!.map((s) => s.shotId)).toEqual(["establishing_drone", "walking_tracking", "detail_cutaway", "hero_finale"]);
+  });
+});
