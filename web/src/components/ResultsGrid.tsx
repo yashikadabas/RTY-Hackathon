@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 import { cn, slugify } from "@/lib/utils";
 import { resolveConditions } from "@/lib/weather";
 import { PostcardComposer } from "./PostcardComposer";
+import { GroundingCard } from "./GroundingCard";
 
 export function ResultsGrid() {
   const { photoJob, place, modifiers, selectedCandidate, setSelectedCandidate, setShowFilm, anotherPlace } = useApp();
@@ -56,13 +57,9 @@ export function ResultsGrid() {
         ))}
       </div>
 
-      {photoJob.grounding && (
-        <details className="mt-6 rounded-2xl border border-border bg-surface p-4 text-sm text-muted">
-          <summary className="cursor-pointer text-foreground">How we grounded this shot</summary>
-          <p className="mt-3 italic">{photoJob.grounding}</p>
-          {photoJob.prompt && <p className="mt-3 font-mono text-xs text-faint">{photoJob.prompt}</p>}
-        </details>
-      )}
+      <div className="mt-6">
+        <GroundingCard frames={photoJob.groundingFrames} grounding={photoJob.grounding} conditions={cond} prompt={photoJob.prompt} />
+      </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <button className="btn btn-ghost" onClick={anotherPlace}>

@@ -1,7 +1,7 @@
 import "server-only";
 import { demoComposite, isDemo, toDataUrl } from "./demo";
 import { faceRestore, generateIdentityImage, toFalUrl } from "./fal";
-import { groundingHeadings, streetViewFrames } from "./google";
+import { groundingHeadings, proxiedStreetView, streetViewFrames } from "./google";
 import { savePhoto } from "./jobs";
 import { compilePhotoPrompt, describeLocation, hasOpenAI } from "./openai";
 import type { PhotoJob } from "./types";
@@ -19,7 +19,9 @@ export async function processPhotoJob(job: PhotoJob) {
     job.stage = "grounding";
     savePhoto(job);
     const at = viewpoint ?? { lat: place.lat, lng: place.lng };
-    const frames = await streetViewFrames(at.lat, at.lng, groundingHeadings(viewpoint?.heading));
+    const headings = groundingHeadings(viewpoint?.heading);
+    const frames = await streetViewFrames(at.lat, at.lng, headings);
+    if (frames.length) job.groundingFrames = headings.map((h) => proxiedStreetView(at.lat, at.lng, (h + 360) % 360));
     if (frames.length && hasOpenAI()) {
       job.grounding = await describeLocation(placeLabel, frames).catch(() => "");
     }

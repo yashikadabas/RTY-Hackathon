@@ -5,7 +5,7 @@ import path from "node:path";
 import { demoComposite, isDemo, toDataUrl } from "../demo";
 import { tts } from "../elevenlabs";
 import { generateIdentityImage, generateImage, hasFal, imageToVideo, toFalUrl, uploadBuffer } from "../fal";
-import { groundingHeadings, streetViewFrames } from "../google";
+import { groundingHeadings, proxiedStreetView, streetViewFrames } from "../google";
 import { saveFilm } from "../jobs";
 import {
   describeLocation,
@@ -144,7 +144,9 @@ export async function processFilmJob(job: FilmJob) {
     job.stage = "planning";
     log(job, `Conditions: ${conditions.label}`);
     const at = viewpoint ?? { lat: place.lat, lng: place.lng };
-    const frames = await streetViewFrames(at.lat, at.lng, groundingHeadings(viewpoint?.heading));
+    const headings = groundingHeadings(viewpoint?.heading);
+    const frames = await streetViewFrames(at.lat, at.lng, headings);
+    if (frames.length) job.groundingFrames = headings.map((h) => proxiedStreetView(at.lat, at.lng, (h + 360) % 360));
     log(job, frames.length ? `Pulled ${frames.length} Street View frames at your viewpoint` : "No Street View; grounding from the place name");
     if (frames.length && hasOpenAI()) {
       job.grounding = await describeLocation(label, frames).catch(() => "");

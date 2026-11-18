@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 import type { PublicFilmJob } from "@/lib/types";
 import { FilmProgressTracker } from "./FilmProgressTracker";
 import { VideoPlayer } from "./VideoPlayer";
+import { GroundingCard } from "./GroundingCard";
 
 export function FilmView() {
   const { userImages, place, modifiers, viewpoint, photoJob, selectedCandidate, filmJob, setFilmJob, setShowFilm, anotherPlace } =
@@ -103,6 +104,11 @@ export function FilmView() {
       ) : (
         <FilmProgressTracker job={filmJob} />
       )}
+      {filmJob && !failed && (filmJob.groundingFrames?.length || filmJob.grounding) ? (
+        <div className="mx-auto mt-8 max-w-5xl">
+          <GroundingCard frames={filmJob.groundingFrames} grounding={filmJob.grounding} conditions={filmJob.conditions} open={!done} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -83,6 +83,8 @@ export interface PhotoJob {
   input: PhotoJobInput;
   createdAt: number;
   grounding?: string;
+  /** Proxied Street View frames the grounding was read from. */
+  groundingFrames?: string[];
   prompt?: string;
   candidates: string[];
   demo?: boolean;
@@ -113,6 +115,7 @@ export interface FilmJob {
   createdAt: number;
   conditions?: Conditions;
   grounding?: string;
+  groundingFrames?: string[];
   shots?: Shot[];
   stills?: { shotId: string; url: string }[];
   /** animated=false means the shot is a Ken Burns move over its still. */
