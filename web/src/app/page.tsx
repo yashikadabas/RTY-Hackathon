@@ -9,6 +9,7 @@ import { GeneratingScreen } from "@/components/GeneratingScreen";
 import { ResultsGrid } from "@/components/ResultsGrid";
 import { FilmView } from "@/components/FilmView";
 import { LandingPage } from "@/components/LandingPage";
+import { ModeBadge } from "@/components/ModeBadge";
 
 const GlobeMap = dynamic(() => import("@/components/GlobeMap").then((m) => m.GlobeMap), { ssr: false });
 
@@ -30,9 +31,12 @@ export default function Home() {
         <button onClick={reset} className="font-display text-xl tracking-tightest">
           ✦ Onlocation
         </button>
-        <button className="btn btn-ghost !py-2 text-sm" onClick={reset}>
-          Start over
-        </button>
+        <div className="flex items-center gap-2">
+          <ModeBadge />
+          <button className="btn btn-ghost !py-2 text-sm" onClick={reset}>
+            Start over
+          </button>
+        </div>
       </header>
       <AnimatePresence mode="wait">
         <motion.section key={step + (showFilm ? "-film" : "")} {...fade} className="mx-auto mt-6 max-w-7xl">
