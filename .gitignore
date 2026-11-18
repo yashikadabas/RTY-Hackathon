@@ -24,3 +24,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Lockfiles are generated (buildathon rule)
+web/package-lock.json
