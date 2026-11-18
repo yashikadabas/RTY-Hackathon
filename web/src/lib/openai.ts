@@ -2,19 +2,64 @@ import "server-only";
 import OpenAI from "openai";
 import type { Conditions, Script, Shot, ShotId, WeatherMood } from "./types";
 
-const MODEL = () => process.env.OPENAI_MODEL || "gpt-4o";
-let client: OpenAI | null = null;
-function ai() {
-  if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY missing");
-  return (client ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+/**
+ * LLM provider. OpenAI (GPT-4o) when OPENAI_API_KEY is set; otherwise the
+ * free Google Gemini API through its OpenAI-compatible endpoint, so the same
+ * Chat Completions calls (vision, JSON mode) work unchanged.
+ */
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/";
+type Provider = "openai" | "gemini";
+
+export function llmProvider(): Provider | null {
+  if (process.env.OPENAI_API_KEY) return "openai";
+  if (process.env.GEMINI_API_KEY) return "gemini";
+  return null;
 }
+/** True when any LLM (OpenAI or Gemini) is configured. */
 export function hasOpenAI() {
-  return Boolean(process.env.OPENAI_API_KEY);
+  return llmProvider() !== null;
+}
+
+let client: OpenAI | null = null;
+let resolvedModel: string | null = null;
+
+/** Pick the newest stable "flash" Gemini model this key can use. */
+export function pickGeminiModel(ids: string[]): string | null {
+  const ok = ids
+    .map((id) => id.replace(/^models\//, ""))
+    .filter((id) => /^gemini-\d+(\.\d+)?-flash$/.test(id));
+  ok.sort((a, b) => parseFloat(b.split("-")[1]) - parseFloat(a.split("-")[1]));
+  return ok[0] ?? null;
+}
+
+async function llm(): Promise<{ c: OpenAI; model: string }> {
+  const provider = llmProvider();
+  if (!provider) throw new Error("No LLM key (OPENAI_API_KEY or GEMINI_API_KEY)");
+  if (!client) {
+    client =
+      provider === "openai"
+        ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+        : new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: GEMINI_BASE });
+  }
+  if (!resolvedModel) {
+    if (provider === "openai") resolvedModel = process.env.OPENAI_MODEL || "gpt-4o";
+    else if (process.env.GEMINI_MODEL) resolvedModel = process.env.GEMINI_MODEL;
+    else {
+      try {
+        const ids: string[] = [];
+        for await (const m of client.models.list()) ids.push(m.id);
+        resolvedModel = pickGeminiModel(ids) ?? "gemini-2.5-flash";
+      } catch {
+        resolvedModel = "gemini-2.5-flash";
+      }
+    }
+  }
+  return { c: client, model: resolvedModel };
 }
 
 /** o-series / gpt-5 reject custom temperatures. */
-function temp(t: number) {
-  return /^(o\d|gpt-5)/.test(MODEL()) ? {} : { temperature: t };
+function temp(t: number, model: string) {
+  return /^(o\d|gpt-5)/.test(model) ? {} : { temperature: t };
 }
 
 export const FILM_LOOK =
@@ -70,9 +115,10 @@ Rules: refer to the subject only as "the person in the reference image"; face mu
 
 /** 1. Describe the real environment from Street View frames. */
 export async function describeLocation(place: string, frames: string[]): Promise<string> {
-  const res = await ai().chat.completions.create({
-    model: MODEL(),
-    ...temp(0.3),
+  const { c, model } = await llm();
+  const res = await c.chat.completions.create({
+    model,
+    ...temp(0.3, model),
     messages: [
       { role: "system", content: GROUNDING_SYSTEM },
       {
@@ -177,9 +223,10 @@ export async function planShots(input: {
     .join("\n");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await ai().chat.completions.create({
-        model: MODEL(),
-        ...temp(0.7),
+      const { c, model } = await llm();
+      const res = await c.chat.completions.create({
+        model,
+        ...temp(0.7, model),
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: PLANNER_SYSTEM },
@@ -207,9 +254,10 @@ export async function writeDialogue(input: {
   sceneIdea?: string;
 }): Promise<Script> {
   try {
-    const res = await ai().chat.completions.create({
-      model: MODEL(),
-      ...temp(0.9),
+    const { c, model } = await llm();
+    const res = await c.chat.completions.create({
+      model,
+      ...temp(0.9, model),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: DIALOGUE_SYSTEM },
@@ -257,9 +305,10 @@ export async function compilePhotoPrompt(input: {
     .filter(Boolean)
     .join("\n");
   try {
-    const res = await ai().chat.completions.create({
-      model: MODEL(),
-      ...temp(0.5),
+    const { c, model } = await llm();
+    const res = await c.chat.completions.create({
+      model,
+      ...temp(0.5, model),
       messages: [
         { role: "system", content: PHOTO_SYSTEM },
         { role: "user", content: user },

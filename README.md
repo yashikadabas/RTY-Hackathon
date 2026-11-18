@@ -159,7 +159,7 @@ npm run dev                  # http://localhost:3000
 ```
 | Key | Used for | Without it |
 |---|---|---|
-| `OPENAI_API_KEY` | grounding, shot planning, narration, photo prompts | template shots + narration |
+| `GEMINI_API_KEY` **or** `OPENAI_API_KEY` | grounding (vision), shot planning, narration, photo prompts. Gemini has a free tier; the newest flash model is auto-selected. | template shots + narration |
 | `GOOGLE_MAPS_API_KEY` | geocoding, Street View frames | OSM geocoding, no grounding frames |
 | `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` | interactive Street View | static frames |
 | `FAL_KEY` | Nano Banana Pro stills, Kling video, CodeFormer, storage | **demo mode** |

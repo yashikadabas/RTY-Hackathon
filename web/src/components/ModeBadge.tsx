@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 
 interface Health {
   demo: boolean;
+  llm: "openai" | "gemini" | null;
   providers: Record<string, boolean>;
 }
 
 const LABELS: Record<string, string> = {
-  openai: "GPT-4o",
+  llm: "LLM",
   google: "Street View",
   streetViewInteractive: "Interactive SV",
   fal: "fal.ai",
@@ -25,7 +26,7 @@ export function ModeBadge() {
   }, []);
   if (!h) return null;
   const tip = Object.entries(h.providers)
-    .map(([k, v]) => `${v ? "✓" : "✕"} ${LABELS[k] ?? k}`)
+    .map(([k, v]) => `${v ? "✓" : "✕"} ${k === "llm" && h.llm ? (h.llm === "gemini" ? "Gemini" : "GPT-4o") : LABELS[k] ?? k}`)
     .join("\n");
   return (
     <span

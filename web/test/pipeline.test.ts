@@ -125,3 +125,23 @@ describe("input validation + geometry", () => {
     expect(bearing({ lat: 0, lng: 0 }, { lat: 0, lng: 1 })).toBeCloseTo(90);
   });
 });
+
+import { pickGeminiModel } from "@/lib/openai";
+
+describe("Gemini model auto-pick", () => {
+  it("picks the newest stable flash model", () => {
+    expect(
+      pickGeminiModel([
+        "models/gemini-2.0-flash",
+        "models/gemini-2.5-flash",
+        "models/gemini-2.5-flash-lite",
+        "models/gemini-2.5-pro",
+        "models/gemini-3.0-flash-preview-tts",
+        "models/text-embedding-004",
+      ]),
+    ).toBe("gemini-2.5-flash");
+  });
+  it("returns null when nothing matches", () => {
+    expect(pickGeminiModel(["models/embedding-001"])).toBeNull();
+  });
+});
