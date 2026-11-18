@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useApp } from "@/lib/store";
 import { UploadDropzone } from "@/components/UploadDropzone";
 import { PlacePanel } from "@/components/PlacePanel";
+import { GeneratingScreen } from "@/components/GeneratingScreen";
+import { ResultsGrid } from "@/components/ResultsGrid";
 
 const GlobeMap = dynamic(() => import("@/components/GlobeMap").then((m) => m.GlobeMap), { ssr: false });
 
@@ -16,7 +18,7 @@ const fade = {
 };
 
 export default function Home() {
-  const { step, reset, setStep } = useApp();
+  const { step, reset, setStep, showFilm } = useApp();
 
   if (step === "landing") {
     return (
@@ -53,8 +55,8 @@ export default function Home() {
               <PlacePanel />
             </div>
           )}
-          {step === "generating" && <p className="text-muted">Generating…</p>}
-          {step === "results" && <p className="text-muted">Results</p>}
+          {step === "generating" && <GeneratingScreen />}
+          {step === "results" && !showFilm && <ResultsGrid />}
         </motion.section>
       </AnimatePresence>
     </main>
