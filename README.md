@@ -118,11 +118,56 @@ See [RULES.md](RULES.md) for the full list.
 
 ## Your project
 
-_Replace this section with your project README:_
-- **Team:**
-- **Track:**
-- **Problem:** who faces it and why it happens
-- **What we built:** the core workflow
-- **The hardest part:** how we solved it
-- **How to run it:**
-- **Demo / screenshots:**
+# ✦ Onlocation: cinematic video in real environments
+
+> Drop a pin anywhere on Earth → real Street View + live weather → a directed, narrated short film of you **on location**.
+
+- **Team:** Onlocation (Yashika Dabas, [@yashikadabas](https://github.com/yashikadabas))
+- **Track:** `physical-world` (Build for the Physical World)
+
+### Problem
+**Who:** creators who want a "me in Kyoto in the rain" clip for Reels/Shorts, travellers previewing a specific street before a trip, and agencies that need a location mood-film for a pitch without flying a crew out.
+
+**Why it happens:** generative image and video tools have never *seen* the street you mean, and they don't know what it's like there *right now*. So they produce a postcard cliché: generic "Paris", always sunny, wrong architecture. The person's face also drifts between shots. Getting the real thing means being physically there with a camera, at the right time, plus editing skills.
+
+### What we built
+A single-page web app with one end-to-end workflow:
+
+1. **Cast:** upload 1–5 photos of one person (downscaled in the browser, never stored by us).
+2. **Scout:** spin a 3D satellite globe (MapLibre + Esri), search, or 🎲. We reverse-geocode the pin, check Street View, and pull **live weather + local time** (Open-Meteo). With a Maps browser key you walk around an interactive Street View. **The exact panorama position and heading you face is what we shoot.**
+3. **Direct:** optional weather override (rain / snow / golden hour / night), scene idea, and era restyle.
+4. **Photos:** three location-grounded photos of you at that spot, then a *Wish you were here* postcard composed on canvas.
+5. **Film:** a 4-shot film (drone → tracking → place-specific cutaway → hero finale), animated, narrated in first person about the real weather, scored with a mood-matched bed, crossfaded, colour-graded with grain, and exported as **16:9 and 9:16**. *Remix narration* re-voices and re-cuts it without regenerating the visuals.
+
+### The hardest part, and how we solved it
+**Making AI output match *this* street at *this* moment, and making the pipeline always deliver.**
+
+- **Grounding from the user's viewpoint.** We fetch 3 Street View frames centred on the heading the user is looking at (`h, h±60°`). GPT-4o vision turns them into a 60–90-word environment description (materials, palette, street furniture, landmarks) that is injected into *every* image prompt.
+- **One source of truth for conditions.** `resolveConditions()` merges live weather, local-time light (golden hour, blue hour…) and user overrides into prompt fragments. The photos, the film stills, the narration *and* the title card all use the same resolved conditions, so they never disagree.
+- **Identity across shots.** Every still is generated from *all* reference photos plus the user's chosen photo (for outfit continuity) by a multi-reference model, followed by CodeFormer face restoration.
+- **A director with rules.** The shot planner's JSON is validated and *repaired* (drone first, hero last, exactly one cutaway, max 4). It retries once and then falls back to a house template.
+- **Never return nothing.** If a video clip fails, that shot becomes a Ken Burns move over its still instead of being dropped. If the narration fails, you get a music-only cut. If ffmpeg fails, you get the raw clips as a playlist. With no API keys the app runs in **demo mode** (real geocoding, weather, planning and an ffmpeg edit with stand-in frames), so the demo path never breaks.
+- **Real post-production.** Our own ffmpeg filtergraph: normalises every source to 24 fps, chains `xfade` crossfades, applies a teal/orange `curves` grade with vignette and temporal grain, loops and ducks the music under the narration with fades, and renders both aspect ratios.
+- Background work runs in Next.js `after()` so it survives serverless response completion. Status payloads never echo selfies back, inputs are validated server-side, and API keys stay on the server behind key-hiding and allow-listed proxies.
+
+### How to run it
+```bash
+cd web
+cp .env.example .env.local   # add keys, or leave blank for demo mode
+npm install
+npm run dev                  # http://localhost:3000
+```
+| Key | Used for | Without it |
+|---|---|---|
+| `OPENAI_API_KEY` | grounding, shot planning, narration, photo prompts | template shots + narration |
+| `GOOGLE_MAPS_API_KEY` | geocoding, Street View frames | OSM geocoding, no grounding frames |
+| `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` | interactive Street View | static frames |
+| `FAL_KEY` | Nano Banana Pro stills, Kling video, CodeFormer, storage | **demo mode** |
+| `ELEVENLABS_API_KEY` | narration voice | music-only cut |
+
+ffmpeg ships via `@ffmpeg-installer/ffmpeg`; no system install needed.
+
+**Stack:** Next.js 16 (App Router, Route Handlers, `after()`), React 19, Tailwind v4, Zustand, Framer Motion, MapLibre GL, Google Maps JS, OpenAI, fal.ai, ElevenLabs, sharp, ffmpeg.
+
+### Demo / screenshots
+Demo script: landing → *Start creating* → upload photos → 🎲 (or search "Alfama, Lisbon") → look around in Street View → toggle 🌧️ Rain → *Shoot here* → pick a take → *Postcard* → *Make the cinematic film* → watch the production log → play → switch to Vertical → *Remix narration*.
