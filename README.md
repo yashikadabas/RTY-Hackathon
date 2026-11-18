@@ -169,5 +169,10 @@ ffmpeg ships via `@ffmpeg-installer/ffmpeg`; no system install needed.
 
 **Stack:** Next.js 16 (App Router, Route Handlers, `after()`), React 19, Tailwind v4, Zustand, Framer Motion, MapLibre GL, Google Maps JS, OpenAI, fal.ai, ElevenLabs, sharp, ffmpeg.
 
+### Status at code freeze
+- ✅ **Live and verified:** Google Geocoding + Street View (static frames + interactive panorama at the user's heading), Open-Meteo live weather, **Gemini** vision grounding, AI shot planning and first-person narration, weather overrides flowing into every step, ffmpeg film in 16:9 + 9:16, postcard, remix. 41 unit tests pass and the production build is clean.
+- 🟡 **Demo mode for the person-in-scene renders:** without a `FAL_KEY`, photos and stills are composited by us (the real Street View frame at your heading + your reference photo, labelled DEMO) and animated with Ken Burns camera moves. Adding `FAL_KEY` switches on Nano Banana Pro stills, Kling clips and CodeFormer with no code changes.
+- 💸 **Runs free:** Gemini free tier + Google Maps free tier (or trial credit) + optional ElevenLabs free tier.
+
 ### Demo / screenshots
 Demo script: landing → *Start creating* → upload photos → 🎲 (or search "Alfama, Lisbon") → look around in Street View → toggle 🌧️ Rain → *Shoot here* → pick a take → *Postcard* → *Make the cinematic film* → watch the production log → play → switch to Vertical → *Remix narration*.
