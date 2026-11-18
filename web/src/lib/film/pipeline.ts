@@ -48,8 +48,9 @@ function templateScript(place: string, c: Conditions): Script {
   };
 }
 
-function stillPrompt(shot: Shot, c: Conditions) {
-  return [shot.imagePrompt, c.weatherFragment, c.timeFragment, FILM_LOOK, SAFETY_LINE].filter(Boolean).join(". ");
+function stillPrompt(shot: Shot, c: Conditions, era?: string) {
+  const period = era ? `Set in the ${era}: period-accurate clothing, vehicles and signage` : "";
+  return [shot.imagePrompt, c.weatherFragment, c.timeFragment, period, FILM_LOOK, SAFETY_LINE].filter(Boolean).join(". ");
 }
 
 // ------------------------------------------------------------- stitching
@@ -162,6 +163,7 @@ export async function processFilmJob(job: FilmJob) {
         tempC: place.weather?.tempC,
         localTime: place.weather?.localTime,
         sceneIdea: modifiers.sceneDescription,
+        era: modifiers.era,
       });
       job.shots = planned.shots;
       if (planned.fallback) log(job, "Shot planner fell back to the house template");
@@ -207,7 +209,7 @@ export async function processFilmJob(job: FilmJob) {
     } else {
       const refs = await Promise.all([seedImage, ...userImages].filter((x): x is string => Boolean(x)).slice(0, 5).map(toFalUrl));
       const results = await mapLimit(shots, CONCURRENCY, async (s) => {
-        const prompt = stillPrompt(s, conditions);
+        const prompt = stillPrompt(s, conditions, modifiers.era);
         const url =
           s.shotId === "detail_cutaway"
             ? await generateImage(prompt, "16:9")

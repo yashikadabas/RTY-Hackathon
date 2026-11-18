@@ -164,12 +164,14 @@ export async function planShots(input: {
   tempC?: number;
   localTime?: string;
   sceneIdea?: string;
+  era?: string;
 }): Promise<{ shots: Shot[]; fallback: boolean }> {
   const user = [
     `Location: ${input.place}`,
     `Environment: ${input.grounding}`,
     conditionsText(input.conditions, input),
     input.sceneIdea ? `Scene idea from the person: ${input.sceneIdea}` : "",
+    input.era ? `Era restyle: set every shot in the ${input.era} — period-accurate clothing, vehicles, signage and film stock.` : "",
   ]
     .filter(Boolean)
     .join("\n");
