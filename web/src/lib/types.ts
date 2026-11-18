@@ -115,7 +115,8 @@ export interface FilmJob {
   grounding?: string;
   shots?: Shot[];
   stills?: { shotId: string; url: string }[];
-  clips?: { shotId: string; url: string; durationSec: number }[];
+  /** animated=false means the shot is a Ken Burns move over its still. */
+  clips?: { shotId: string; url: string; durationSec: number; animated: boolean }[];
   script?: Script;
   videoUrl?: string;
   videoUrlVertical?: string;
