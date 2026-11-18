@@ -51,10 +51,12 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
         )}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <span className="font-display text-xl tracking-tightest">✦ Onlocation</span>
+          <span className="font-display whitespace-nowrap text-xl tracking-tightest">✦ Onlocation</span>
           <div className="flex items-center gap-1">
-            <a href="#how" className="btn btn-ghost hidden !py-2 text-sm sm:inline-flex">How it works</a>
-            <a href="#features" className="btn btn-ghost hidden !py-2 text-sm sm:inline-flex">Features</a>
+            <div className="hidden items-center gap-1 sm:flex">
+              <a href="#how" className="btn btn-ghost !py-2 text-sm">How it works</a>
+              <a href="#features" className="btn btn-ghost !py-2 text-sm">Features</a>
+            </div>
             <button className="btn btn-primary !py-2 text-sm" onClick={onStart}>Start creating</button>
           </div>
         </div>

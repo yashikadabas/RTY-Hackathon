@@ -195,6 +195,7 @@ body {
   mask-image: radial-gradient(ellipse at center, black 20%, transparent 70%);
 }
 
+
 /* ---------- Motion ---------- */
 @keyframes shimmer {
   0% {
