@@ -7,6 +7,7 @@ import { UploadDropzone } from "@/components/UploadDropzone";
 import { PlacePanel } from "@/components/PlacePanel";
 import { GeneratingScreen } from "@/components/GeneratingScreen";
 import { ResultsGrid } from "@/components/ResultsGrid";
+import { FilmView } from "@/components/FilmView";
 
 const GlobeMap = dynamic(() => import("@/components/GlobeMap").then((m) => m.GlobeMap), { ssr: false });
 
@@ -45,7 +46,7 @@ export default function Home() {
         </button>
       </header>
       <AnimatePresence mode="wait">
-        <motion.section key={step} {...fade} className="mx-auto mt-6 max-w-7xl">
+        <motion.section key={step + (showFilm ? "-film" : "")} {...fade} className="mx-auto mt-6 max-w-7xl">
           {step === "upload" && <UploadDropzone />}
           {step === "map" && (
             <div className="grid gap-4 lg:h-[calc(100vh-7.5rem)] lg:grid-cols-[1fr_420px]">
@@ -57,6 +58,7 @@ export default function Home() {
           )}
           {step === "generating" && <GeneratingScreen />}
           {step === "results" && !showFilm && <ResultsGrid />}
+          {step === "results" && showFilm && <FilmView />}
         </motion.section>
       </AnimatePresence>
     </main>
