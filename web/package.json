@@ -1,9 +1,11 @@
 {
-  "name": "web",
+  "name": "onlocation",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
