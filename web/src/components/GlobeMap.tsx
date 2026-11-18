@@ -77,7 +77,7 @@ export function GlobeMap() {
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-3xl border border-border bg-black">
-      <div ref={el} className="absolute inset-0" />
+      <div ref={el} style={{ position: "absolute", inset: 0 }} />
       <form onSubmit={search} className="panel elevated absolute left-3 right-3 top-3 flex gap-2 p-2 sm:right-auto sm:w-[420px]">
         <input
           className="field !rounded-full !border-transparent !bg-transparent"

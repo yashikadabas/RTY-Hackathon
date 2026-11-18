@@ -8,6 +8,7 @@ import { PlacePanel } from "@/components/PlacePanel";
 import { GeneratingScreen } from "@/components/GeneratingScreen";
 import { ResultsGrid } from "@/components/ResultsGrid";
 import { FilmView } from "@/components/FilmView";
+import { LandingPage } from "@/components/LandingPage";
 
 const GlobeMap = dynamic(() => import("@/components/GlobeMap").then((m) => m.GlobeMap), { ssr: false });
 
@@ -21,19 +22,7 @@ const fade = {
 export default function Home() {
   const { step, reset, setStep, showFilm } = useApp();
 
-  if (step === "landing") {
-    return (
-      <main className="spotlight grid min-h-screen place-items-center px-6">
-        <div className="text-center">
-          <p className="eyebrow">Onlocation</p>
-          <h1 className="font-display mt-4 text-5xl tracking-tightest">On location, anywhere.</h1>
-          <button className="btn btn-primary mt-8" onClick={() => setStep("upload")}>
-            Start creating →
-          </button>
-        </div>
-      </main>
-    );
-  }
+  if (step === "landing") return <LandingPage onStart={() => setStep("upload")} />;
 
   return (
     <main className="min-h-screen px-4 pb-10 pt-4 sm:px-6">

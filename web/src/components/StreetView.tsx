@@ -78,7 +78,7 @@ export function StreetView({ lat, lng }: { lat: number; lng: number }) {
   if (status === "nokey") return null;
   return (
     <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-border bg-surface-2">
-      <div ref={el} className="absolute inset-0" />
+      <div ref={el} style={{ position: "absolute", inset: 0 }} />
       {status === "loading" && <div className="skeleton absolute inset-0" />}
       {status === "none" && (
         <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted">
